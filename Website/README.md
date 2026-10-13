@@ -15,6 +15,22 @@ Open `http://127.0.0.1:5175`. The storefront will show a clear unavailable state
 
 Build the static site with `npm --prefix Website run build`; output goes to `Website/dist`.
 
+## Publish updates safely
+
+From the PenPal project root, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Website\publish.ps1 -DryRun
+```
+
+Review the listed staged paths. The dry run only prepares an isolated temporary checkout; it does not commit or push. When the list is correct, publish with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Website\publish.ps1
+```
+
+The script verifies the `PenPalPages` remote, builds the website, starts from the current GitHub `main`, copies only `Website/`, `public/assets/`, and the Pages workflow, then commits and pushes those paths. It never pushes the desktop-app history or unrelated working-tree changes.
+
 ## GitHub Pages
 
 1. Push this repository to GitHub.

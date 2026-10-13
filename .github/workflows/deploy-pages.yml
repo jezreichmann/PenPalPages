@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'Website/**'
+      - 'public/assets/**'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
@@ -33,6 +34,7 @@ jobs:
         env:
           VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}
           VITE_WEBSITE_API_URL: ${{ vars.WEBSITE_API_URL || 'https://penpalpages-licences.fly.dev' }}
+      - run: cp Website/CNAME Website/dist/CNAME
       - uses: actions/upload-pages-artifact@v3
         with:
           path: Website/dist

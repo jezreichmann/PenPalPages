@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { ArrowDown, ArrowRight, Check, ChevronDown, Heart, Mail, Menu, Play, Sparkles, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
+import { ArrowDown, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Mail, Menu, Pause, Play, Sparkles, X } from 'lucide-react';
 
 const API_URL = (import.meta.env.VITE_WEBSITE_API_URL as string | undefined) || 'https://penpalpages-licences.fly.dev';
 const BASE = import.meta.env.BASE_URL;
@@ -32,6 +33,8 @@ function App() {
   const [contactError, setContactError] = useState('');
   const [tourStep, setTourStep] = useState(0);
   const [tourPlaying, setTourPlaying] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const tourLauncherRef = useRef<HTMLButtonElement | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
 
   useEffect(() => {
@@ -50,10 +53,29 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!tourPlaying) return;
-    const timer = window.setInterval(() => setTourStep((step) => (step + 1) % TOUR_STEPS.length), 5200);
+    if (!tourOpen || !tourPlaying) return;
+    const timer = window.setInterval(() => setTourStep((step) => (step + 1) % TOUR_STEPS.length), 15000);
     return () => window.clearInterval(timer);
-  }, [tourPlaying]);
+  }, [tourOpen, tourPlaying]);
+
+  useEffect(() => {
+    if (!tourOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const returnFocus = tourLauncherRef.current;
+    document.body.style.overflow = 'hidden';
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setTourOpen(false); setTourPlaying(false); }
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+      requestAnimationFrame(() => returnFocus?.focus());
+    };
+  }, [tourOpen]);
+
+  const openTour = (event: ReactMouseEvent<HTMLButtonElement>) => { tourLauncherRef.current = event.currentTarget; setTourStep(0); setTourPlaying(true); setTourOpen(true); };
+  const closeTour = () => { setTourOpen(false); setTourPlaying(false); };
 
   const current = config ?? INITIAL_CONFIG;
   const promotion = current.promotion;
@@ -169,10 +191,10 @@ function App() {
       </section>
 
       <section id="demo" className="demo-section section-pad">
-        <div className="demo-heading"><div><span className="section-kicker">A QUICK LOOK AROUND</span><h2>From blank page<br /><em>to happy postbox.</em></h2></div><button type="button" className={tourPlaying ? 'tour-control playing' : 'tour-control'} onClick={() => setTourPlaying((playing) => !playing)}><span>{tourPlaying ? 'Ⅱ' : <Play size={15} fill="currentColor" />}</span>{tourPlaying ? 'Pause the tour' : 'Play the 45-second tour'}</button></div>
-        <div className="tour-frame">
-          <div className="tour-screen"><EditorPreview step={tourStep} /></div>
-          <div className="tour-side"><span className="tour-step">{TOUR_STEPS[tourStep].eyebrow}</span><h3>{TOUR_STEPS[tourStep].title}</h3><p>{TOUR_STEPS[tourStep].copy}</p><div className="tour-progress" aria-label={`Tour step ${tourStep + 1} of ${TOUR_STEPS.length}`}>{TOUR_STEPS.map((step, index) => <button key={step.title} aria-label={`Show tour step ${index + 1}`} aria-pressed={index === tourStep} onClick={() => { setTourStep(index); setTourPlaying(false); }} />)}</div><div className="tour-caption">A guided look at the editor<br /><small>Backgrounds · stickers · print tools</small></div></div>
+        <div className="demo-heading"><div><span className="section-kicker">A QUICK LOOK AROUND</span><h2>From blank page<br /><em>to happy postbox.</em></h2><p>Take a calm, guided 45-second look around the studio.</p></div><span className="tour-duration">45 SEC <i /> 3 SHORT CHAPTERS</span></div>
+        <div className="tour-launch-card">
+          <div className="tour-launch-screen"><EditorPreview compact /><span className="tour-launch-wash" /><button type="button" className="tour-launch-play" onClick={openTour} aria-label="Play the 45-second PenPal Pages tour"><Play size={24} fill="currentColor" /></button><span className="tour-launch-time">00:45</span></div>
+          <div className="tour-launch-copy"><span className="tour-step">BACKGROUNDS · STICKERS · PRINT</span><h3>A letter, made your way.</h3><p>See how a patterned page becomes a personal note, ready to print or send as a PDF.</p><button type="button" className="button button-dark" onClick={openTour}><Play size={14} fill="currentColor" />Start the 45-second tour <ArrowRight size={15} /></button></div>
         </div>
       </section>
 
@@ -211,6 +233,16 @@ function App() {
     </main>
 
     <footer className="site-footer"><a className="footer-brand" href="#top"><img src={`${BASE}assets/penpal-splash-icon.svg`} alt="" />PenPal Pages</a><span>Thoughtful stationery, by Dark Weather Studios.</span><a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a><span>© {new Date().getFullYear()} Dark Weather Studios</span></footer>
+    {tourOpen && <div className="tour-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeTour(); }}>
+      <section className="tour-modal" role="dialog" aria-modal="true" aria-labelledby="tour-modal-title">
+        <header className="tour-modal-header"><div><span className="section-kicker">PENPAL PAGES · THE 45-SECOND TOUR</span><h2 id="tour-modal-title">A little studio, step by step.</h2></div><button type="button" className="tour-modal-close" onClick={closeTour} aria-label="Close tour"><X size={19} /></button></header>
+        <div className="tour-modal-content">
+          <div className="tour-modal-screen"><EditorPreview step={tourStep} /></div>
+          <aside className="tour-modal-side"><span className="tour-step">{TOUR_STEPS[tourStep].eyebrow}</span><h3>{TOUR_STEPS[tourStep].title}</h3><p>{TOUR_STEPS[tourStep].copy}</p><div className="tour-progress" aria-label={`Tour chapter ${tourStep + 1} of ${TOUR_STEPS.length}`}>{TOUR_STEPS.map((step, index) => <button key={step.title} type="button" aria-label={`Go to chapter ${index + 1}`} aria-pressed={index === tourStep} onClick={() => { setTourStep(index); setTourPlaying(false); }} />)}</div><div className="tour-caption">Chapter {String(tourStep + 1).padStart(2, '0')} of 03<br /><small>Backgrounds · stickers · print tools</small></div></aside>
+        </div>
+        <footer className="tour-modal-footer"><span className="tour-elapsed"><i className={tourPlaying ? 'running' : ''} style={{ '--tour-step': tourStep } as React.CSSProperties} /></span><span className="tour-runtime">45-second guided tour</span><div className="tour-modal-controls"><button type="button" aria-label="Previous chapter" onClick={() => { setTourStep((step) => (step + TOUR_STEPS.length - 1) % TOUR_STEPS.length); setTourPlaying(false); }}><ChevronLeft size={17} /></button><button type="button" className="tour-pause" onClick={() => setTourPlaying((playing) => !playing)}>{tourPlaying ? <><Pause size={13} /> Pause</> : <><Play size={13} fill="currentColor" /> Resume</>}</button><button type="button" aria-label="Next chapter" onClick={() => { setTourStep((step) => (step + 1) % TOUR_STEPS.length); setTourPlaying(false); }}><ChevronRight size={17} /></button></div></footer>
+      </section>
+    </div>}
   </>;
 }
 
